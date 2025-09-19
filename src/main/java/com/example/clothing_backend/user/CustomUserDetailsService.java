@@ -1,6 +1,6 @@
 package com.example.clothing_backend.user;
 
-import com.example.clothing_backend.user.dao.UserDao;
+import com.example.clothing_backend.user.UserDao;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

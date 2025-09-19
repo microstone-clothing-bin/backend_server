@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>마이페이지</title>
     <style>
+        /* 전체 레이아웃 및 스타일 */
         body { font-family: sans-serif; background-color: #f4f4f9; color: #333; }
         .container { max-width: 600px; margin: 40px auto; padding: 20px; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 8px; }
         .profile-container { text-align: center; margin-bottom: 30px; }
@@ -22,16 +23,22 @@
 <body>
 
 <div class="container">
+
+    <!-- 프로필 이미지 섹션 -->
     <div class="profile-container">
         <form th:action="@{/mypage/uploadProfile}" method="post" enctype="multipart/form-data">
+            <!-- 업로드된 이미지가 있으면 보여주고 없으면 기본 이미지 표시 -->
             <img th:if="${loginUser.profileImage != null}" th:src="${loginUser.profileImage}" class="profile-img" alt="프로필 이미지">
             <img th:if="${loginUser.profileImage == null}" th:src="@{/images/default_profile.png}" class="profile-img" alt="기본 프로필 이미지">
             <h2 th:text="${loginUser.nickname}"></h2>
+
+            <!-- 프로필 이미지 업로드 input -->
             <input type="file" name="profileImage" accept="image/*">
             <button type="submit" class="btn btn-primary">프로필 사진 변경</button>
         </form>
     </div>
 
+    <!-- 회원정보 섹션 (읽기 전용) -->
     <div class="form-section">
         <h3>회원정보</h3>
         <div class="info-grid">
@@ -41,6 +48,7 @@
         </div>
     </div>
 
+    <!-- 비밀번호 재설정 섹션 -->
     <div class="form-section">
         <h3>비밀번호 재설정</h3>
         <form th:action="@{/mypage/resetPassword}" method="post">
@@ -50,22 +58,29 @@
         </form>
     </div>
 
+    <!-- 계정 보안 섹션 (로그아웃 / 회원 탈퇴) -->
     <div class="form-section">
-        <h3>계정 보안</h3>
+        <!-- Spring Security 기반 로그아웃 -->
         <form th:action="@{/api/user/logout}" method="post">
             <button type="submit" class="btn">로그아웃</button>
         </form>
+
+        <!-- 회원 탈퇴 -->
         <form th:action="@{/mypage/deleteAccount}" method="post" onsubmit="return confirm('정말로 계정을 삭제하시겠습니까? 되돌릴 수 없습니다.');">
             <button type="submit" class="btn btn-danger">회원 탈퇴</button>
         </form>
     </div>
 
+    <!-- 오류 메시지 표시 -->
     <div th:if="${error != null}" class="message">
         <p th:text="${error}"></p>
     </div>
+
+    <!-- 성공/정보 메시지 표시 -->
     <div th:if="${message != null}" class="message" style="color:blue;">
         <p th:text="${message}"></p>
     </div>
+
 </div>
 
 </body>

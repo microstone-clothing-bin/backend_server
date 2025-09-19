@@ -16,19 +16,21 @@ public class Wish {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    // 기본키, auto_increment
     private Long id;
 
     @Column(nullable = false)
-    private Long userId;
+    private Long userId; // 찜한 유저 ID
 
     @Column(nullable = false)
-    private Long binId;
+    private Long binId; // 찜한 옷 수거함 ID
 
     @Column(updatable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt; // 생성 시각, 수정 불가
 
     @PrePersist
     protected void onCreate() {
+        // 엔티티 저장 직전에 자동으로 현재 시간 설정
         this.createdAt = LocalDateTime.now();
     }
 

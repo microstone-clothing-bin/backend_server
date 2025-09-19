@@ -15,18 +15,18 @@ public class ClothingBinService {
         this.clothingBinRepository = clothingBinRepository;
     }
 
-    // 컨트롤러로부터 받은 파라미터로 비즈니스 로직 처리 (반경 검색)
+    // 반경 기반 검색 또는 전체 조회
     public List<ClothingBin> findClothingBins(Double lat, Double lng, Double radiusKm) {
         if (lat != null && lng != null && radiusKm != null) {
-            // 위치 기반 검색 로직
+            // 위치 기반 검색
             return clothingBinRepository.findBinsWithinRadius(lat, lng, radiusKm);
         } else {
-            // 전체 검색 로직
+            // 전체 조회
             return clothingBinRepository.findAll();
         }
     }
 
-    // 사각형 경계 좌표 받아서 리포에 전달
+    // 지도 사각형 경계 내 데이터 조회
     public List<ClothingBin> findBinsInBounds(double swLat, double swLng, double neLat, double neLng) {
         return clothingBinRepository.findBinsInBounds(swLat, swLng, neLat, neLng);
     }

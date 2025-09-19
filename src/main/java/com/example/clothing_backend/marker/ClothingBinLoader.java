@@ -23,6 +23,7 @@ public class ClothingBinLoader implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        // DB에 이미 데이터가 있으면 CSV 로드 생략
         if (repository.count() > 0) {
             System.out.println("이미 의류 수거함 데이터가 존재합니다. CSV 로드를 생략합니다.");
             return;
@@ -30,17 +31,22 @@ public class ClothingBinLoader implements CommandLineRunner {
 
         System.out.println("======================================");
         System.out.println("CSV 파싱 시작");
-        List<com.example.clothing_backend.marker.ClothingBin> binsFromCsv = loadBinsFromCsv("csv/전국_의류수거함.csv");
+
+        // CSV 파일에서 데이터 읽기
+        List<ClothingBin> binsFromCsv = loadBinsFromCsv("csv/전국_의류수거함.csv");
         saveNewBins(binsFromCsv);
+
         System.out.println("CSV 파싱 및 저장이 완료되었습니다.");
         System.out.println("======================================");
     }
 
     @Transactional
-    public void saveNewBins(List<com.example.clothing_backend.marker.ClothingBin> binsFromCsv) {
+    public void saveNewBins(List<ClothingBin> binsFromCsv) {
+        // 기존 좌표 가져오기 (중복 확인용)
         Set<Coordinates> existingCoordinates = repository.findAllCoordinates();
 
-        List<com.example.clothing_backend.marker.ClothingBin> newBins = binsFromCsv.stream()
+        // CSV 데이터 중 기존 좌표와 중복되지 않는 것만 필터링
+        List<ClothingBin> newBins = binsFromCsv.stream()
                 .filter(bin -> !existingCoordinates.contains(new Coordinates(bin.getLatitude(), bin.getLongitude())))
                 .collect(Collectors.toList());
 
@@ -52,8 +58,8 @@ public class ClothingBinLoader implements CommandLineRunner {
         }
     }
 
-    private List<com.example.clothing_backend.marker.ClothingBin> loadBinsFromCsv(String path) throws Exception {
-        List<com.example.clothing_backend.marker.ClothingBin> bins = new ArrayList<>();
+    private List<ClothingBin> loadBinsFromCsv(String path) throws Exception {
+        List<ClothingBin> bins = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(new ClassPathResource(path).getInputStream(), "EUC-KR"))) {
 
@@ -65,13 +71,13 @@ public class ClothingBinLoader implements CommandLineRunner {
                     String[] parts = line.split(",", -1);
                     if (parts.length < 4) continue;
 
-                    // CSV 파일의 3번째 컬럼(parts[2]) 위도, 4번째 컬럼(parts[3]) 경도
+                    // CSV의 3번째 컬럼 위도, 4번째 컬럼 경도
                     double lat = parseDoubleSafe(parts[2].trim());
                     double lon = parseDoubleSafe(parts[3].trim());
 
                     if (lat == 0.0 || lon == 0.0) continue;
 
-                    bins.add(new com.example.clothing_backend.marker.ClothingBin(parts[0].trim(), parts[1].trim(), lat, lon));
+                    bins.add(new ClothingBin(parts[0].trim(), parts[1].trim(), lat, lon));
                 } catch (Exception e) {
                     // 특정 라인 오류 시 로그만 남기고 계속 진행
                 }
@@ -80,6 +86,7 @@ public class ClothingBinLoader implements CommandLineRunner {
         return bins;
     }
 
+    // 안전하게 문자열을 double로 변환, 변환 실패 시 0.0 반환
     private double parseDoubleSafe(String s) {
         try {
             if (s == null || s.isEmpty()) return 0.0;

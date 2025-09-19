@@ -1,6 +1,6 @@
 package com.example.clothing_backend.user;
 
-import com.example.clothing_backend.user.dao.UserDao;
+import com.example.clothing_backend.user.UserDao;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,23 +19,23 @@ public class UserService {
     // 회원가입
     @Transactional
     public void addUser(User user) {
+        // 비밀번호를 암호화하여 저장
         String encodedPassword = passwordEncoder.encode(user.getPassword());
 
-        // addUser가 반환하는, ID가 포함된 객체를 받아서 사용해야 함
+        // DAO를 통해 사용자 등록, 반환된 savedUser에서 자동 생성된 ID 사용
         User savedUser = userDao.addUser(user.getEmail(), user.getId(), encodedPassword, user.getNickname());
 
-        // savedUser의 ID를 사용해서 역할 매핑
+        // 기본 권한(role) 매핑 (ROLE_USER)
         userDao.mappingUserRole(savedUser.getUserId());
     }
 
-    // 로그인 시 사용
+    // 로그인 시 사용자 조회
     public User getUser(String id) {
         return userDao.getUserById(id);
     }
 
-    // 중복 확인
+    // 중복 확인 (아이디, 닉네임)
     public boolean isDuplicate(String type, String value) {
-        // 보안이 강화된 DAO 메소드를 호출하도록 수정
         if ("id".equals(type)) {
             return userDao.existsById(value);
         } else if ("nickname".equals(type)) {
@@ -69,6 +69,8 @@ public class UserService {
             byte[] bytes = file.getBytes();
             String filename = file.getOriginalFilename();
             userDao.saveProfileImage(id, bytes, filename);
+
+            // 브라우저에서 바로 보여줄 수 있도록 Base64 인코딩 후 반환
             return "data:image/png;base64," + Base64.getEncoder().encodeToString(bytes);
         } catch (Exception e) {
             throw new RuntimeException("프로필 이미지 저장 실패", e);
@@ -94,6 +96,7 @@ public class UserService {
     // 비밀번호 재설정
     @Transactional
     public void updatePassword(String id, String email, String newPassword) {
+        // 새 비밀번호를 암호화 후 DB 업데이트
         String encodedPassword = passwordEncoder.encode(newPassword);
         userDao.updatePassword(id, email, encodedPassword);
     }

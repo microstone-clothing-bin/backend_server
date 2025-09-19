@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <title>게시판 목록보기</title>
+    <!-- CSS 연결 -->
     <link rel="stylesheet" th:href="@{/css/board.css}"/>
 </head>
 <body>
 <section class="board">
+
+    <!-- 페이지 제목 -->
     <div class="page-title">
         <div class="container">
             <h3>게시판 목록보기</h3>
@@ -26,37 +29,50 @@
                 </tr>
                 </thead>
                 <tbody>
+                <!-- 게시글 없을 경우 -->
                 <tr th:if="${paging.isEmpty()}">
                     <td colspan="5">게시글이 없습니다.</td>
                 </tr>
+
+                <!-- 게시글 반복 출력 -->
                 <tr th:each="board : ${paging.content}">
-                    <td th:text="${board.boardId}"></td>
+                    <td th:text="${board.boardId}"></td> <!-- 글 번호 -->
                     <td>
+                        <!-- 제목 클릭 시 상세보기 페이지 이동 -->
                         <a th:href="@{/board(boardId=${board.boardId})}" th:text="${board.title}"></a>
                     </td>
-                    <td th:text="${board.viewCnt}"></td>
-                    <td th:text="${board.nickname}"></td>
-                    <td th:text="${#temporals.format(board.redate, 'yyyy-MM-dd')}"></td>
+                    <td th:text="${board.viewCnt}"></td> <!-- 조회수 -->
+                    <td th:text="${board.nickname}"></td> <!-- 작성자 -->
+                    <td th:text="${#temporals.format(board.redate, 'yyyy-MM-dd')}"></td> <!-- 작성일 -->
                 </tr>
                 </tbody>
             </table>
         </div>
+
+        <!-- 글쓰기 버튼 (로그인 상태일 때만 표시) -->
         <div class="container" style="text-align: right; margin-top: 10px;">
             <a th:href="@{/writeform}" th:if="${session.loginInfo != null}" class="write-button">글쓰기</a>
         </div>
     </div>
 
+    <!-- 페이징 -->
     <div class="pagination" th:if="${!paging.isEmpty()}" style="text-align: center; margin-top: 20px;">
+        <!-- 처음 페이지 -->
         <a th:href="@{/share(page=0)}" th:unless="${paging.first}">처음</a>
+
+        <!-- 이전 페이지 -->
         <a th:href="@{/share(page=${paging.number - 1})}" th:if="${paging.hasPrevious()}">이전</a>
 
+        <!-- 페이지 번호 반복 -->
         <span th:each="pageNumber : ${#numbers.sequence(0, paging.totalPages - 1)}">
             <a th:href="@{/share(page=${pageNumber})}"
                th:text="${pageNumber + 1}"
                th:classappend="${pageNumber == paging.number} ? 'active' : ''"></a>
         </span>
 
+        <!-- 다음 페이지 -->
         <a th:href="@{/share(page=${paging.number + 1})}" th:if="${paging.hasNext()}">다음</a>
+        <!-- 마지막 페이지 -->
         <a th:href="@{/share(page=${paging.totalPages - 1})}" th:unless="${paging.last}">끝</a>
     </div>
 </section>

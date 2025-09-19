@@ -17,8 +17,9 @@ public class WishDao {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    // 즐겨찾기 추가
+    // 즐찾 추가
     public int addWish(Wish wish) {
+        // userId + binId가 이미 존재하면 created_at만 갱신
         String sql = "INSERT INTO wish (user_id, bin_id) VALUES (:userId, :binId) ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP";
         MapSqlParameterSource param = new MapSqlParameterSource()
                 .addValue("userId", wish.getUserId())
@@ -26,14 +27,14 @@ public class WishDao {
         return jdbcTemplate.update(sql, param);
     }
 
-    // 회원 즐겨찾기 목록 조회
+    // 회원 즐찾 목록 조회
     public List<Wish> getUserWishes(String userId) {
         String sql = "SELECT * FROM wish WHERE user_id = :userId";
         return jdbcTemplate.query(sql, new MapSqlParameterSource("userId", userId),
                 new BeanPropertyRowMapper<>(Wish.class));
     }
 
-    // 즐겨찾기 삭제
+    // 즐찾 삭제
     public int removeWish(String userId, Long binId) {
         String sql = "DELETE FROM wish WHERE user_id = :userId AND bin_id = :binId";
         MapSqlParameterSource param = new MapSqlParameterSource()

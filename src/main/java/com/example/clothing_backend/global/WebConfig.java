@@ -11,8 +11,8 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry){
+        // /images/** 요청이 들어오면 로컬 C:/upload/ 경로에서 파일 서빙
         registry.addResourceHandler("/images/**")
                 .addResourceLocations("file:///C:/upload/");
     }
 }
-

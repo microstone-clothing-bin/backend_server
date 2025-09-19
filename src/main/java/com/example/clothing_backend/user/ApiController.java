@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.IOException;
 
 @RestController
@@ -17,7 +16,7 @@ public class ApiController {
 
     private final UserService userservice;
 
-    // ------------------ User API ------------------
+    // User API
 
     @PostMapping("/user/register")
     public String registerUser(@RequestParam String id,
@@ -33,7 +32,7 @@ public class ApiController {
         user.setNickname(nickname);
         user.setEmail(email);
 
-        userservice.addUser(user); // User 객체 넘김
+        userservice.addUser(user); // User 객체를 서비스에 넘김
 
         return "success";
     }
@@ -46,12 +45,13 @@ public class ApiController {
         User user = userservice.getUser(id);
         if (!user.getPassword().equals(password)) return "로그인 실패";
 
-        // profileImageBase64는 User에 저장
+        // 프로필 이미지 Base64 세팅
         String base64Image = userservice.getProfileImageBase64(user.getId());
         if (base64Image != null) user.setProfileImageBase64(base64Image);
 
         session.setAttribute("loginUser", user);
 
+        // 로그인 정보 세션에 저장 (권한 포함)
         LoginInfo loginInfo = new LoginInfo(user.getUserId(), user.getId(), user.getNickname());
         loginInfo.setRoles(userservice.getRoles(user.getUserId()));
         session.setAttribute("loginInfo", loginInfo);
@@ -61,18 +61,18 @@ public class ApiController {
 
     @PostMapping("/user/logout")
     public String logoutUser(HttpSession session) {
-        session.invalidate();
+        session.invalidate(); // 세션 삭제
         return "success";
     }
 
-    // ------------------ MyPage API ------------------
+    // MyPage API
 
     @PostMapping("/mypage/uploadProfile")
     public String uploadProfile(@RequestParam MultipartFile profileImage, HttpSession session) throws IOException {
         User loginUser = (User) session.getAttribute("loginUser");
         if (loginUser == null) return "로그인 필요";
 
-        // bytes를 User에 넣기 위해 saveProfileImage 수정 필요
+        // 이미지 bytes를 Base64로 변환 후 User에 세팅
         String base64 = userservice.saveProfileImage(profileImage, loginUser.getId());
         loginUser.setProfileImageBase64(base64);
         session.setAttribute("loginUser", loginUser);
@@ -89,7 +89,7 @@ public class ApiController {
         if (!newPassword.equals(newPasswordCheck)) return "비밀번호 불일치";
 
         userservice.updatePassword(loginUser.getId(), loginUser.getEmail(), newPassword);
-        session.invalidate();
+        session.invalidate(); // 비밀번호 변경 후 세션 초기화
         return "success";
     }
 
@@ -99,7 +99,7 @@ public class ApiController {
         if (loginUser == null) return "로그인 필요";
 
         userservice.deleteUser(loginUser.getId());
-        session.invalidate();
+        session.invalidate(); // 탈퇴 후 세션 초기화
         return "success";
     }
 }

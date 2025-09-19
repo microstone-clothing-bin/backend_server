@@ -8,10 +8,10 @@ import java.util.List;
 @Setter
 public class LoginInfo {
 
-    private Long userId;
-    private String id;
-    private String nickname;
-    private List<String> roles;
+    private Long userId;      // DB상 유저 고유 번호
+    private String id;        // 로그인용 아이디
+    private String nickname;  // 화면에 표시할 닉네임
+    private List<String> roles; // 권한 목록 (ROLE_USER, ROLE_ADMIN 등)
 
     public LoginInfo(Long userId, String id, String nickname) {
         this.userId = userId;

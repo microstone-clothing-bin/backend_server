@@ -6,8 +6,12 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    User findById(String id); // 로그인 ID(String)로 사용자 조회
+    // 로그인 시 아이디(id)로 User 객체 조회
+    User findById(String id);
 
-    boolean existsById(String id); // 아이디 중복 확인
-    boolean existsByNickname(String nickname); // 닉네임 중복 확인
+    // 회원가입 시 아이디 중복 확인
+    boolean existsById(String id);
+
+    // 회원가입 시 닉네임 중복 확인
+    boolean existsByNickname(String nickname);
 }
