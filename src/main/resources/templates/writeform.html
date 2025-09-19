@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게시물 작성</title>
+    <link rel="stylesheet" th:href="@{/css/form.css}"/>
+</head>
+<body>
+<div class="form-container">
+    <h1>게시물 작성</h1>
+
+    <form th:action="@{/write}" method="post" enctype="multipart/form-data">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+        <div>
+            <label>작성자:</label>
+            <input type="text" th:value="${loginInfo.nickname}" readonly/>
+        </div>
+        <div>
+            <label for="title">제목:</label>
+            <input type="text" id="title" name="title" required />
+        </div>
+        <div>
+            <label for="content">내용:</label>
+            <textarea id="content" name="content" cols="50" rows="10" required></textarea>
+        </div>
+        <div>
+            <label for="image">이미지:</label>
+            <input type="file" id="image" name="image" accept="image/*" />
+        </div>
+        <br>
+        <button type="submit">등록하기</button>
+        <a th:href="@{/share}" class="btn-cancel">취소</a>
+    </form>
+</div>
+</body>
+</html>

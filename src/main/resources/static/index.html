@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>의류 수거함 클러스터링</title>
+
+    <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=44c7lycb4w&callback=initMap"></script>
+    <script src="./js/markerclustering.js" defer></script>
+
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; width: 100%; }
+        #map { width: 100%; height: 100%; }
+        .cluster {
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: white; border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+
+<script>
+    let map;
+    let markers = [];
+    let clusterer = null;
+    let selectedInfoWindow = null;
+
+    function initMap() {
+        map = new naver.maps.Map("map", {
+            center: new naver.maps.LatLng(37.6, 127.1),
+            zoom: 13,
+            mapDataControl: false,
+            zoomControl: true,
+            zoomControlOptions: { position: naver.maps.Position.TOP_LEFT }
+        });
+
+        naver.maps.Event.addListener(map, 'idle', updateMarkers);
+
+        naver.maps.Event.addListener(map, 'click', () => {
+            if (selectedInfoWindow) {
+                selectedInfoWindow.close();
+                selectedInfoWindow = null;
+            }
+        });
+
+        updateMarkers();
+    }
+
+    function makeClusterer() {
+        return new MarkerClustering({
+            minClusterSize: 2, maxZoom: 16, map: map, markers: markers,
+            disableClickZoom: false, gridSize: 120,
+            icons: [{ content: `<div class="cluster"></div>`, size: new naver.maps.Size(40, 40), anchor: new naver.maps.Point(20, 20) }],
+            stylingFunction: function (clusterMarker, count) {
+                const clusterDiv = clusterMarker.getElement().querySelector('div');
+                const size = Math.min(60, 20 + Math.sqrt(count) * 2);
+                const fontSize = Math.max(12, size / 3.5);
+                clusterDiv.textContent = count;
+                clusterDiv.style.width = `${size}px`;
+                clusterDiv.style.height = `${size}px`;
+                clusterDiv.style.lineHeight = `${size}px`;
+                clusterDiv.style.fontSize = `${fontSize}px`;
+                if (count < 10) { clusterDiv.style.backgroundColor = '#ffd5e1'; }
+                else if (count < 50) { clusterDiv.style.backgroundColor = '#ff88bc'; }
+                else if (count < 100) { clusterDiv.style.backgroundColor = '#c637ff'; }
+                else if (count < 500) { clusterDiv.style.backgroundColor = '#000bff'; }
+                else { clusterDiv.style.backgroundColor = '#739bff'; }
+            }
+        });
+    }
+
+    function updateMarkers() {
+        const bounds = map.getBounds();
+        const sw = bounds.getSW();
+        const ne = bounds.getNE();
+
+        // API 테스트 Url
+        const apiUrl = `http://localhost:8080/api/clothing-bins/in-bounds?swLat=${sw.lat()}&swLng=${sw.lng()}&neLat=${ne.lat()}&neLng=${ne.lng()}`;
+
+        fetch(apiUrl)
+            .then(res => res.ok ? res.json() : Promise.reject('서버 응답 오류'))
+            .then(data => {
+                // 삭제하는 이 코드 수정해야함
+                markers.forEach(m => m.setMap(null));
+                if (clusterer) {
+                    clusterer.setMap(null); // 클러스터러 자체를 지도에서 숨김
+                }
+                markers = [];
+                // --------------------------
+
+                markers = data.map(bin => {
+                    const marker = new naver.maps.Marker({
+                        position: new naver.maps.LatLng(bin.latitude, bin.longitude)
+                    });
+                    const infoWindow = new naver.maps.InfoWindow({
+                        content: `<div style="padding:5px;font-size:12px;"><strong>${bin.roadAddress || bin.landLotAddress || '주소 정보 없음'}</strong></div>`,
+                        borderWidth: 1
+                    });
+                    naver.maps.Event.addListener(marker, 'click', () => {
+                        if (selectedInfoWindow) selectedInfoWindow.close();
+                        infoWindow.open(map, marker);
+                        selectedInfoWindow = infoWindow;
+                    });
+                    return marker;
+                });
+
+                // 새로운 마커들로 클러스터러를 '새로 만들어' 지도에 적용 (추후 수정해야함)
+                clusterer = makeClusterer();
+            })
+            .catch(err => console.error('마커 로딩 중 오류 발생:', err));
+    }
+</script>
+</body>
+</html>
