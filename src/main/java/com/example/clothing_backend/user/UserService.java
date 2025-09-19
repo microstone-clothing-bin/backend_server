@@ -1,12 +1,11 @@
 package com.example.clothing_backend.user;
 
-import com.example.clothing_backend.user.UserDao;
+import com.example.clothing_backend.user.dao.UserDao;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder; // ✅ 비밀번호 암호화 기능 import
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.util.Base64;
 import java.util.List;
 
@@ -20,10 +19,13 @@ public class UserService {
     // 회원가입
     @Transactional
     public void addUser(User user) {
-        String encoded = passwordEncoder.encode(user.getPassword());
-        user.setPassword(encoded);
-        userDao.addUser(user.getEmail(), user.getId(), user.getPassword(), user.getNickname());
-        userDao.mappingUserRole(user.getUserId());
+        String encodedPassword = passwordEncoder.encode(user.getPassword());
+
+        // addUser가 반환하는, ID가 포함된 객체를 받아서 사용해야 함
+        User savedUser = userDao.addUser(user.getEmail(), user.getId(), encodedPassword, user.getNickname());
+
+        // savedUser의 ID를 사용해서 역할 매핑
+        userDao.mappingUserRole(savedUser.getUserId());
     }
 
     // 로그인 시 사용
@@ -33,10 +35,11 @@ public class UserService {
 
     // 중복 확인
     public boolean isDuplicate(String type, String value) {
+        // 보안이 강화된 DAO 메소드를 호출하도록 수정
         if ("id".equals(type)) {
-            return userDao.existsByField("id", value);
+            return userDao.existsById(value);
         } else if ("nickname".equals(type)) {
-            return userDao.existsByField("nickname", value);
+            return userDao.existsByNickname(value);
         }
         return false;
     }
