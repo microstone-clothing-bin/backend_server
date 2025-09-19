@@ -12,6 +12,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
+import java.util.Base64;
 
 @Controller
 @RequiredArgsConstructor
@@ -19,11 +20,10 @@ public class BoardController {
 
     private final BoardService boardService;
 
-    // @PageableDefault로 기본 페이지네이션 설정 (0페이지부터, 10개씩, ID 역순 정렬)
-    @GetMapping("/share")
-    public String boardList(@PageableDefault(page = 0, size = 10, sort = "boardId", direction = Sort.Direction.DESC) Pageable pageable,
-                            Model model) {
+    // --- HTML 페이지를 보여주는 메소드들 ---
 
+    @GetMapping("/share")
+    public String boardList(@PageableDefault(page = 0, size = 10, sort = "boardId", direction = Sort.Direction.DESC) Pageable pageable, Model model) {
         Page<Board> paging = boardService.getBoards(pageable);
         model.addAttribute("paging", paging);
         return "list";
@@ -80,5 +80,32 @@ public class BoardController {
             boardService.deleteBoard(boardId);
         }
         return "redirect:/share";
+    }
+
+    // --- API (JSON 데이터를 반환하는 메소드들) ---
+    // ✅ @ResponseBody 어노테이션을 붙여서 이 메소드들은 데이터를 직접 반환하도록 설정
+
+    @GetMapping("/api/boards")
+    @ResponseBody
+    public Page<Board> getBoardsApi(@PageableDefault(size = 10, sort = "boardId", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<Board> boardPage = boardService.getBoards(pageable);
+        boardPage.getContent().forEach(board -> {
+            if (board.getImageData() != null)
+                board.setImageBase64(Base64.getEncoder().encodeToString(board.getImageData()));
+            if (board.getReviewImage() != null)
+                board.setReviewImageBase64(Base64.getEncoder().encodeToString(board.getReviewImage()));
+        });
+        return boardPage;
+    }
+
+    @GetMapping("/api/boards/{boardId}")
+    @ResponseBody
+    public Board getBoardApi(@PathVariable long boardId) {
+        Board board = boardService.getBoard(boardId);
+        if (board.getImageData() != null)
+            board.setImageBase64(Base64.getEncoder().encodeToString(board.getImageData()));
+        if (board.getReviewImage() != null)
+            board.setReviewImageBase64(Base64.getEncoder().encodeToString(board.getReviewImage()));
+        return board;
     }
 }

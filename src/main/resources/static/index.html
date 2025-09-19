@@ -16,10 +16,28 @@
             border: 2px solid rgba(255, 255, 255, 0.5);
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
         }
+        /* ✅ '여기서 다시 검색' 버튼 스타일 추가 */
+        #research-btn {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: bold;
+            background-color: #6c5ce7;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 <div id="map"></div>
+<button id="research-btn">이 위치에서 다시 검색</button>
 
 <script>
     let map;
@@ -36,7 +54,11 @@
             zoomControlOptions: { position: naver.maps.Position.TOP_LEFT }
         });
 
-        naver.maps.Event.addListener(map, 'idle', updateMarkers);
+        // ✅ 'idle' 이벤트 리스너를 삭제하여 자동 업데이트를 막음
+        // naver.maps.Event.addListener(map, 'idle', updateMarkers);
+
+        // ✅ '여기서 다시 검색' 버튼에 클릭 이벤트 리스너 추가
+        document.getElementById('research-btn').addEventListener('click', updateMarkers);
 
         naver.maps.Event.addListener(map, 'click', () => {
             if (selectedInfoWindow) {
@@ -45,7 +67,7 @@
             }
         });
 
-        updateMarkers();
+        updateMarkers(); // 최초 로딩 시 한 번은 실행
     }
 
     function makeClusterer() {
@@ -76,19 +98,16 @@
         const sw = bounds.getSW();
         const ne = bounds.getNE();
 
-        // API 테스트 Url
         const apiUrl = `http://localhost:8080/api/clothing-bins/in-bounds?swLat=${sw.lat()}&swLng=${sw.lng()}&neLat=${ne.lat()}&neLng=${ne.lng()}`;
 
         fetch(apiUrl)
             .then(res => res.ok ? res.json() : Promise.reject('서버 응답 오류'))
             .then(data => {
-                // 삭제하는 이 코드 수정해야함
                 markers.forEach(m => m.setMap(null));
                 if (clusterer) {
-                    clusterer.setMap(null); // 클러스터러 자체를 지도에서 숨김
+                    clusterer.setMap(null);
                 }
                 markers = [];
-                // --------------------------
 
                 markers = data.map(bin => {
                     const marker = new naver.maps.Marker({
@@ -106,7 +125,6 @@
                     return marker;
                 });
 
-                // 새로운 마커들로 클러스터러를 '새로 만들어' 지도에 적용 (추후 수정해야함)
                 clusterer = makeClusterer();
             })
             .catch(err => console.error('마커 로딩 중 오류 발생:', err));

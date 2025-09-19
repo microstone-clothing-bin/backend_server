@@ -13,7 +13,6 @@
 
     <!-- action 주소 수정 및 CSRF 토큰 추가 -->
     <form th:action="@{/userReg}" method="post" onsubmit="return validateForm()">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 
         <div>
             <label for="id">아이디:</label>
