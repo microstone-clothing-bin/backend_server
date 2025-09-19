@@ -1,9 +1,10 @@
 package com.example.clothing_backend.board;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -12,16 +13,16 @@ public class BoardService {
 
     private final BoardRepository boardRepository;
 
-    public List<Board> getBoards(int page) {
-        // (추후 페이지네이션 로직 구현 필요)
-        return boardRepository.findAll();
+    // List<Board> -> Page<Board> 로 변경, 파라미터도 Pageable로 변경
+    public Page<Board> getBoards(Pageable pageable) {
+        return boardRepository.findAll(pageable);
     }
 
     @Transactional
     public Board getBoard(long boardId) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + boardId));
-        board.setViewCnt(board.getViewCnt() + 1); // 조회수 증가
+        board.setViewCnt(board.getViewCnt() + 1);
         return board;
     }
 
