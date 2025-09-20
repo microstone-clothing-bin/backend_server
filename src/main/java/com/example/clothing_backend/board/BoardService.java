@@ -6,6 +6,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.swing.*;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true) // 기본적으로 조회만 가능, 쓰기 동작은 @Transactional 따로 붙임
