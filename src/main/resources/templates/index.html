@@ -9,32 +9,20 @@
 
     <style>
         html, body { margin: 0; padding: 0; height: 100%; width: 100%; display: flex; flex-direction: column; }
-        #map-container { flex-grow: 1; position: relative; } /* 버튼 위치를 잡기 위해 relative 추가 */
+        #map-container { flex-grow: 1; position: relative; }
         #map { width: 100%; height: 100%; }
-
-        /* 마커 클러스터 디자인 */
         .cluster {
             cursor: pointer; display: flex; align-items: center; justify-content: center;
             font-weight: bold; color: white; border-radius: 50%;
             border: 2px solid rgba(255, 255, 255, 0.5);
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
         }
-
-        /* '여기서 다시 검색' 버튼 스타일 (디자이너님 허락 안맡음 임시용) */
         #research-btn {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
-            padding: 10px 15px;
-            font-size: 14px;
-            font-weight: bold;
-            background-color: #6c5ce7;
-            color: white;
-            border: none;
-            border-radius: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: absolute; top: 60px;
+            left: 50%; transform: translateX(-50%); z-index: 100;
+            padding: 10px 15px; font-size: 14px; font-weight: bold;
+            background-color: #6c5ce7; color: white; border: none;
+            border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             cursor: pointer;
         }
     </style>
@@ -110,17 +98,16 @@
         const bounds = map.getBounds();
         const sw = bounds.getSW();
         const ne = bounds.getNE();
-
         const apiUrl = `/api/clothing-bins/in-bounds?swLat=${sw.lat()}&swLng=${sw.lng()}&neLat=${ne.lat()}&neLng=${ne.lng()}`;
 
         fetch(apiUrl)
             .then(res => res.ok ? res.json() : Promise.reject('서버 응답 오류'))
             .then(data => {
-                // 기존 마커 제거
+
+                // 기존 마커와 클러스터를 지도에서 제거
+                markers.forEach(m => m.setMap(null));
                 if (clusterer) {
-                    clusterer.clearMarkers(); // clearMarkers로 기존 마커만 제거
-                } else {
-                    markers.forEach(m => m.setMap(null)); // 클러스터러 없으면 수동 제거
+                    clusterer.setMap(null);
                 }
                 markers = [];
 
@@ -141,12 +128,7 @@
                     return marker;
                 });
 
-                // 마커 클러스터링 적용
-                if (clusterer) {
-                    clusterer.addMarkers(markers);
-                } else {
-                    clusterer = makeClusterer();
-                }
+                clusterer = makeClusterer();
             })
             .catch(err => console.error('마커 로딩 중 오류 발생:', err));
     }
