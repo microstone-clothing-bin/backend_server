@@ -30,11 +30,18 @@ public class BoardController {
         return "list"; // list.html 반환
     }
 
+    // 게시판 상세 페이지
     @GetMapping("/board")
     public String boardDetail(@RequestParam("boardId") long boardId, Model model) {
-        // 단일 게시글 상세조회
-        model.addAttribute("board", boardService.getBoard(boardId));
-        return "detail";
+        Board board = boardService.getBoard(boardId);
+
+        // DB의 이미지(byte[])를 HTML에 표시할 Base64 문자열로 변환
+        if (board.getImageData() != null) {
+            board.setImageBase64(Base64.getEncoder().encodeToString(board.getImageData()));
+        }
+
+        model.addAttribute("board", board);
+        return "detail"; // templates/detail.html
     }
 
     @GetMapping("/writeform")

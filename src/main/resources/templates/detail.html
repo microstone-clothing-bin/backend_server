@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${board.title}"></title>
+    <link rel="stylesheet" th:href="@{/css/board.css}"/>
+</head>
+<body>
+<div th:replace="~{fragments/header :: headerFragment}"></div>
+
+<div class="container board-detail">
+    <h1 th:text="${board.title}"></h1>
+    <div class="info">
+        <span>작성자: <span th:text="${board.nickname}"></span></span> |
+        <span>조회수: <span th:text="${board.viewCnt}"></span></span> |
+        <span>작성일: <span th:text="${#temporals.format(board.redate, 'yyyy-MM-dd HH:mm')}"></span></span>
+    </div>
+    <hr>
+    <div class="content-area">
+        <div class="image-area" th:if="${board.imageBase64 != null}">
+            <img th:src="'data:image/jpeg;base64,' + ${board.imageBase64}" style="max-width: 100%;" />
+        </div>
+        <div class="content-text" th:text="${board.content}"></div>
+    </div>
+    <hr>
+    <div class="button-area">
+        <a th:href="@{/share}" class="btn">목록보기</a>
+        <span th:if="${session.loginInfo != null and (session.loginInfo.nickname == board.nickname or session.loginInfo.roles.contains('ROLE_ADMIN'))}">
+                <a th:href="@{/updateform(boardId=${board.boardId})}" class="btn">수정하기</a>
+                <a th:href="@{/delete(boardId=${board.boardId})}" class="btn btn-danger" onclick="return confirm('정말로 삭제하시겠습니까?');">삭제하기</a>
+            </span>
+    </div>
+</div>
+</body>
+</html>

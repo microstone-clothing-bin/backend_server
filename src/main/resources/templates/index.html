@@ -7,6 +7,7 @@
     <script th:src="|https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${naverMapsClientId}&callback=initMap|"></script>
     <script th:src="@{/js/markerclustering.js}" defer></script>
 
+    <!-- 디자이너님과 협의 X 임시용, 협의 해야함 !-->
     <style>
         html, body { margin: 0; padding: 0; height: 100%; width: 100%; display: flex; flex-direction: column; }
         #map-container { flex-grow: 1; position: relative; }
@@ -51,7 +52,7 @@
             zoomControlOptions: { position: naver.maps.Position.TOP_LEFT }
         });
 
-        // '여기서 다시 검색' 버튼 클릭 시 마커 업데이트
+        // '여기서 다시 검색' 버튼 클릭 시 마커 업데이트 (디자이너님과 협의 X 빠른 시일 내 해야함)
         document.getElementById('research-btn').addEventListener('click', updateMarkers);
 
         // 지도 클릭 시 열린 InfoWindow 닫기
