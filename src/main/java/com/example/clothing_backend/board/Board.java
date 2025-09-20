@@ -3,6 +3,8 @@ package com.example.clothing_backend.board;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 
 @Entity // JPA에서 이 클래스가 DB 테이블이랑 매핑된다는 뜻
@@ -20,21 +22,19 @@ public class Board {
     private String content;
     private String nickname;
 
-    @Column(columnDefinition = "DATETIME")
-    // MySQL에서 DATETIME으로 명시
+    @Column(columnDefinition = "TIMESTAMP")
     private LocalDateTime redate;
 
     private Long userId;
-    private int viewCnt; // 조회수
+    private int viewCnt;
 
-    @Lob
-    // 대용량 바이너리 데이터 저장 (이미지)
+    @JdbcTypeCode(SqlTypes.VARBINARY)
     @Column(name = "image")
     private byte[] imageData;
 
     private String reviewText;
-    @Lob
-    // 리뷰용 이미지 따로 저장
+
+    @JdbcTypeCode(SqlTypes.VARBINARY)
     @Column(name = "review_image")
     private byte[] reviewImage;
 

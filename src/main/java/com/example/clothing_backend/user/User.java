@@ -3,6 +3,8 @@ package com.example.clothing_backend.user;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -35,7 +37,7 @@ public class User implements UserDetails { // Spring Security UserDetails 구현
     private LocalDateTime redate; // 가입일 또는 마지막 정보 수정일
 
     // 프로필 이미지
-    @Lob
+    @JdbcTypeCode(SqlTypes.VARBINARY)
     private byte[] profileImageBlob; // DB에 실제 이미지 저장용 BLOB
 
     @Transient
