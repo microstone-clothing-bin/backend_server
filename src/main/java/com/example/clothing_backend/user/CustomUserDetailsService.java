@@ -1,6 +1,5 @@
 package com.example.clothing_backend.user;
 
-import com.example.clothing_backend.user.UserDao;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -16,22 +15,19 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserDao userDao;
+    private final UserRepository userRepository; // ✅ UserDao -> UserRepository 로 변경
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // 로그인 폼에서 입력한 아이디(id)가 username 파라미터로 들어옴
-        User user = userDao.getUserById(username);
-        if (user == null) {
-            throw new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + username);
-        }
+        User user = userRepository.findById(username)
+                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + username));
 
-        // 해당 사용자의 권한(role) 정보를 가져와서 Security가 이해할 수 있는 형태로 변환
-        List<GrantedAuthority> authorities = userDao.getRoles(user.getUserId()).stream()
+        List<GrantedAuthority> authorities = userRepository.findRolesByUserId(user.getUserId()).stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
 
-        user.setAuthorities(authorities); // User 객체에 권한 정보 설정
+        // User 객체는 UserDetails를 구현했으므로 바로 사용 가능
+        // (단, User 객체에 권한을 설정해주는 로직이 필요하다면 추가해야 함)
         return user;
     }
 }
