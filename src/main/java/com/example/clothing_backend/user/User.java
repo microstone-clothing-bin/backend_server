@@ -3,6 +3,8 @@ package com.example.clothing_backend.user;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -36,7 +38,7 @@ public class User implements UserDetails {
 
     private LocalDateTime redate; // 가입일(자동 세팅)
 
-    @Lob
+    @JdbcTypeCode(SqlTypes.VARBINARY)
     private byte[] profileImageBlob; // 프로필 이미지(바이너리 저장)
 
     @Transient
