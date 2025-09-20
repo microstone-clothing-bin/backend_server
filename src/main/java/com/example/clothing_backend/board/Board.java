@@ -29,14 +29,13 @@ public class Board {
 
     @Lob
     // 대용량 바이너리 데이터 저장 (이미지)
-    @Column(name = "image", columnDefinition = "LONGBLOB")
+    @Column(name = "image")
     private byte[] imageData;
 
     private String reviewText;
-
     @Lob
     // 리뷰용 이미지 따로 저장
-    @Column(name = "review_image", columnDefinition = "LONGBLOB")
+    @Column(name = "review_image")
     private byte[] reviewImage;
 
     @Transient
