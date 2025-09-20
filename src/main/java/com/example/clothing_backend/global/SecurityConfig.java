@@ -1,4 +1,4 @@
-package com.example.clothing_backend.global.config;
+package com.example.clothing_backend.global;
 
 import com.example.clothing_backend.user.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
