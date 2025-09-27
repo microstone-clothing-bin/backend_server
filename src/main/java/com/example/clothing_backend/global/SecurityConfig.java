@@ -1,4 +1,4 @@
-// 보안 설정 (최종 수정 완료)
+// 보안 설정 (진짜 최종 수정 완료)
 
 package com.example.clothing_backend.global;
 
@@ -44,6 +44,7 @@ public class SecurityConfig {
 
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
+                            // API 요청에 대해 401 에러와 JSON 응답
                             if (request.getRequestURI().startsWith("/api/")) {
                                 response.setStatus(HttpStatus.UNAUTHORIZED.value());
                                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -87,13 +88,15 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // 로그인 성공 핸들러: API와 웹 요청을 구분
+    // 로그인 성공 핸들러
     private AuthenticationSuccessHandler loginSuccessHandler() {
         return (request, response, authentication) -> {
             String accept = request.getHeader("Accept");
+            // 브라우저 요청인지 확인
+            boolean isBrowser = accept != null && accept.contains("text/html");
 
-            // API 클라이언트 요청인지 확인 (Accept 헤더 기준)
-            if (accept != null && accept.contains(MediaType.APPLICATION_JSON_VALUE)) {
+            if (!isBrowser) {
+                // 브라우저가 아니면 (API 요청이면) JSON 응답
                 response.setStatus(HttpStatus.OK.value());
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.setCharacterEncoding("UTF-8");
@@ -102,18 +105,21 @@ public class SecurityConfig {
                 successDetails.put("message", "로그인에 성공했습니다.");
                 response.getWriter().write(objectMapper.writeValueAsString(successDetails));
             } else {
-                // 일반 브라우저 요청이면 메인 페이지로 리다이렉트
+                // 브라우저 요청이면 메인 페이지로 리다이렉트
                 response.sendRedirect("/");
             }
         };
     }
 
-    // 로그인 실패 핸들러: API와 웹 요청을 구분
+    // 로그인 실패 핸들러
     private AuthenticationFailureHandler loginFailureHandler() {
         return (request, response, exception) -> {
             String accept = request.getHeader("Accept");
+            // 브라우저 요청인지 확인
+            boolean isBrowser = accept != null && accept.contains("text/html");
 
-            if (accept != null && accept.contains(MediaType.APPLICATION_JSON_VALUE)) {
+            if (!isBrowser) {
+                // API 요청이면 JSON 응답
                 response.setStatus(HttpStatus.UNAUTHORIZED.value());
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.setCharacterEncoding("UTF-8");
@@ -122,18 +128,21 @@ public class SecurityConfig {
                 errorDetails.put("message", "아이디 또는 비밀번호가 일치하지 않습니다.");
                 response.getWriter().write(objectMapper.writeValueAsString(errorDetails));
             } else {
-                // 일반 브라우저 요청이면 로그인 페이지로 리다이렉트
+                // 브라우저 요청이면 로그인 페이지로 리다이렉트
                 response.sendRedirect("/login.html?error=true");
             }
         };
     }
 
-    // 로그아웃 성공 핸들러: API와 웹 요청을 구분
+    // 로그아웃 성공 핸들러
     private LogoutSuccessHandler logoutSuccessHandler() {
         return (request, response, authentication) -> {
             String accept = request.getHeader("Accept");
+            // 브라우저 요청인지 확인
+            boolean isBrowser = accept != null && accept.contains("text/html");
 
-            if (accept != null && accept.contains(MediaType.APPLICATION_JSON_VALUE)) {
+            if (!isBrowser) {
+                // API 요청이면 JSON 응답
                 response.setStatus(HttpStatus.OK.value());
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.setCharacterEncoding("UTF-8");
@@ -142,6 +151,7 @@ public class SecurityConfig {
                 successDetails.put("message", "로그아웃 되었습니다.");
                 response.getWriter().write(objectMapper.writeValueAsString(successDetails));
             } else {
+                // 브라우저 요청이면 메인 페이지로 리다이렉트
                 response.sendRedirect("/");
             }
         };
