@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <title>의류 수거함 지도</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
+    <script th:src="|https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${naverMapsClientId}&callback=initMap|"></script>
+    <script th:src="@{/js/markerclustering.js}" defer></script>
+
+    <!-- 디자이너님과 협의 X 임시용, 협의 해야함 !-->
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; width: 100%; display: flex; flex-direction: column; }
+        #map-container { flex-grow: 1; position: relative; }
+        #map { width: 100%; height: 100%; }
+        .cluster {
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: white; border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+        }
+        #research-btn {
+            position: absolute; top: 60px;
+            left: 50%; transform: translateX(-50%); z-index: 100;
+            /* 임시로 padding값, 폰트 사이즈 조정 (추후 디자이너님과 협의 해야함) */
+            padding: 8px 12px;
+            font-size: 12px;
+
+            font-weight: bold;
+            background-color: #6c5ce7;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+        .iw-inner { padding: 10px; width: 300px; }
+        .iw-inner h4 { margin-top: 0; }
+        .post-list { max-height: 150px; overflow-y: auto; margin: 10px 0; }
+        .post-item { border-bottom: 1px solid #eee; padding: 5px 0; }
+        .post-item strong { color: #6c5ce7; }
+        .post-form textarea { width: 95%; margin-bottom: 5px; }
+        .post-form input[type="file"] { margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/header :: headerFragment}"></div>
+
+<div id="map-container">
+    <div id="map"></div>
+    <button id="research-btn">이 위치에서 다시 검색</button>
+</div>
+
+<script>
+    let map; // 지도 객체
+    let markers = []; // 마커 배열
+    let clusterer = null; // 클러스터 객체
+    let selectedInfoWindow = null; // 현재 열린 InfoWindow
+
+    // 지도 초기화
+    function initMap() {
+        map = new naver.maps.Map("map", {
+            center: new naver.maps.LatLng(37.6, 127.1), // 초기 지도 중심
+            zoom: 13,
+            mapDataControl: false,
+            zoomControl: true,
+            zoomControlOptions: { position: naver.maps.Position.TOP_LEFT }
+        });
+
+        // '여기서 다시 검색' 버튼 클릭 시 마커 업데이트
+        document.getElementById('research-btn').addEventListener('click', updateMarkers);
+
+        // 지도 클릭 시 열린 InfoWindow 닫기
+        naver.maps.Event.addListener(map, 'click', () => {
+            if (selectedInfoWindow) {
+                selectedInfoWindow.close();
+                selectedInfoWindow = null;
+            }
+        });
+
+        updateMarkers(); // 최초 로딩 시 한 번 마커 로딩
+    }
+
+    // 마커 클러스터러 생성
+    function makeClusterer() {
+        return new MarkerClustering({
+            minClusterSize: 2, // 최소 2개 이상이면 클러스터링
+            maxZoom: 16,       // 이 zoom 이상이면 클러스터링 해제
+            map: map,
+            markers: markers,
+            disableClickZoom: false,
+            gridSize: 120,     // 클러스터 영역 크기
+            icons: [{ content: `<div class="cluster"></div>`, size: new naver.maps.Size(40, 40), anchor: new naver.maps.Point(20, 20) }],
+            stylingFunction: function (clusterMarker, count) {
+                const clusterDiv = clusterMarker.getElement().querySelector('div');
+                const size = Math.min(60, 20 + Math.sqrt(count) * 2);
+                const fontSize = Math.max(12, size / 3.5);
+                clusterDiv.textContent = count;
+                clusterDiv.style.width = `${size}px`;
+                clusterDiv.style.height = `${size}px`;
+                clusterDiv.style.lineHeight = `${size}px`;
+                clusterDiv.style.fontSize = `${fontSize}px`;
+                if (count < 10) { clusterDiv.style.backgroundColor = '#ffd5e1'; }
+                else if (count < 50) { clusterDiv.style.backgroundColor = '#ff88bc'; }
+                else if (count < 100) { clusterDiv.style.backgroundColor = '#c637ff'; }
+                else if (count < 500) { clusterDiv.style.backgroundColor = '#000bff'; }
+                else { clusterDiv.style.backgroundColor = '#739bff'; }
+            }
+        });
+    }
+
+    // 마커 업데이트
+    function updateMarkers() {
+        const bounds = map.getBounds();
+        const sw = bounds.getSW();
+        const ne = bounds.getNE();
+        const apiUrl = `/api/clothing-bins/in-bounds?swLat=${sw.lat()}&swLng=${sw.lng()}&neLat=${ne.lat()}&neLng=${ne.lng()}`;
+
+        fetch(apiUrl)
+            .then(res => res.ok ? res.json() : Promise.reject('서버 응답 오류'))
+            .then(data => {
+
+                // 기존 마커와 클러스터를 지도에서 제거
+                markers.forEach(m => m.setMap(null));
+                if (clusterer) {
+                    clusterer.setMap(null);
+                }
+                markers = [];
+
+                // 서버에서 받아온 데이터로 마커 생성
+                markers = data.map(bin => {
+                    const marker = new naver.maps.Marker({
+                        position: new naver.maps.LatLng(bin.latitude, bin.longitude)
+                    });
+
+                    const infoWindow = new naver.maps.InfoWindow({
+                        content: `<div style="padding:5px;font-size:12px;"><strong>${bin.roadAddress || bin.landLotAddress || '주소 정보 없음'}</strong></div>`,
+                        borderWidth: 1
+                    });
+
+                    // 마커 클릭 시 API 호출, 리뷰 동적 로드
+                    naver.maps.Event.addListener(marker, 'click', () => {
+                        if (selectedInfoWindow) selectedInfoWindow.close();
+                        // 1. 해당 마커의 게시글 목록을 API로 요청
+                        fetch(`/api/markers/${bin.id}/posts`)
+                            .then(res => res.json())
+                            .then(posts => {
+                                // 2. 게시글 목록 HTML 생성
+                                let postHtml = posts.map(post => `
+                                    <div class="post-item">
+                                        <strong>${post.authorNickname}</strong>: ${post.content}
+                                        ${post.imageBase64 ? `<br><img src="data:image/jpeg;base64,${post.imageBase64}" style="max-width:100%;"/>` : ''}
+                                    </div>
+                                `).join('');
+                                if(posts.length === 0) postHtml = '<p>아직 등록된 리뷰가 없습니다.</p>';
+
+                                // 3. 새 게시글 작성 폼 HTML 생성
+                                const formHtml = `
+                                    <div class="post-form">
+                                        <hr><h5>리뷰 남기기</h5>
+                                        <form id="post-form-${bin.id}">
+                                            <textarea name="content" rows="3" placeholder="리뷰를 남겨주세요..."></textarea><br>
+                                            <input type="file" name="image" accept="image/*"><br>
+                                            <button type="button" onclick="submitPost(${bin.id})">등록</button>
+                                        </form>
+                                    </div>
+                                `;
+
+                                // 4. InfoWindow에 들어갈 전체 HTML 컨텐츠 조립
+                                const infoWindowContent = `<div class="iw-inner"><h4>${bin.roadAddress || bin.landLotAddress}</h4><div class="post-list">${postHtml}</div>${formHtml}</div>`;
+
+                                // 5. InfoWindow 생성 및 열기
+                                const infoWindow = new naver.maps.InfoWindow({ content: infoWindowContent, maxWidth: 350 });
+                                infoWindow.open(map, marker);
+                                selectedInfoWindow = infoWindow;
+                            });
+                    });
+                    return marker;
+                });
+                clusterer = makeClusterer();
+            })
+            .catch(err => console.error('마커 로딩 중 오류 발생:', err));
+    }
+
+    // 비회원 리뷰 게시글 못올림 함수
+    function submitPost(binId) {
+        const form = document.getElementById(`post-form-${binId}`);
+        const formData = new FormData(form);
+        const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+
+        fetch(`/api/markers/${binId}/posts`, {
+            method: 'POST',
+            headers: { [csrfHeader]: csrfToken },
+            body: formData
+        })
+            .then(res => {
+                if (res.status === 401) {
+                    alert('리뷰를 작성하려면 로그인이 필요합니다.');
+                    window.location.href = '/login.html';
+                    return Promise.reject('로그인 필요');
+                }
+                // res.ok (200-299)가 아닐 경우, 서버의 에러 메시지를 포함하여 실패 처리
+                if (!res.ok) {
+                    return res.text().then(text => Promise.reject(text || '리뷰 등록에 실패했습니다.'));
+                }
+                return res.text();
+            })
+            .then(result => {
+                alert('리뷰가 등록되었습니다!');
+                if (selectedInfoWindow) selectedInfoWindow.close();
+            })
+            .catch(err => {
+                if (err !== '로그인 필요') {
+                    console.error("Error:", err);
+                    alert(err); // 서버가 보낸 에러 메시지를 그대로 표시
+                }
+            });
+    }
+</script>
+</body>
+</html>
