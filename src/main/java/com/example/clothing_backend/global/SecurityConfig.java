@@ -1,27 +1,35 @@
-// 보안 설정 (건들지 말기)
+// 보안 설정 (최종 수정 완료)
 
 package com.example.clothing_backend.global;
 
-import com.example.clothing_backend.global.CustomAuthenticationSuccessHandler;
 import com.example.clothing_backend.user.CustomUserDetailsService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final CustomUserDetailsService customUserDetailsService;
-    private final CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -31,10 +39,24 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // 전역 CORS 설정 적용
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
+
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            if (request.getRequestURI().startsWith("/api/")) {
+                                response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                                response.setCharacterEncoding("UTF-8");
+                                Map<String, String> errorDetails = new HashMap<>();
+                                errorDetails.put("status", "error");
+                                errorDetails.put("message", "로그인이 필요합니다.");
+                                response.getWriter().write(objectMapper.writeValueAsString(errorDetails));
+                            } else {
+                                response.sendRedirect("/login.html");
+                            }
+                        })
+                )
 
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(
@@ -50,13 +72,13 @@ public class SecurityConfig {
                         .loginProcessingUrl("/login")
                         .usernameParameter("id")
                         .passwordParameter("password")
-                        .successHandler(customAuthenticationSuccessHandler)
-                        .failureUrl("/login.html?error=true")
+                        .successHandler(loginSuccessHandler())
+                        .failureHandler(loginFailureHandler())
                         .permitAll()
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")
-                        .logoutSuccessUrl("/")
+                        .logoutSuccessHandler(logoutSuccessHandler())
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID")
                 )
@@ -65,22 +87,75 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // 전역 CORS 설정 Bean 생성
+    // 로그인 성공 핸들러: API와 웹 요청을 구분
+    private AuthenticationSuccessHandler loginSuccessHandler() {
+        return (request, response, authentication) -> {
+            String accept = request.getHeader("Accept");
+
+            // API 클라이언트 요청인지 확인 (Accept 헤더 기준)
+            if (accept != null && accept.contains(MediaType.APPLICATION_JSON_VALUE)) {
+                response.setStatus(HttpStatus.OK.value());
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.setCharacterEncoding("UTF-8");
+                Map<String, String> successDetails = new HashMap<>();
+                successDetails.put("status", "success");
+                successDetails.put("message", "로그인에 성공했습니다.");
+                response.getWriter().write(objectMapper.writeValueAsString(successDetails));
+            } else {
+                // 일반 브라우저 요청이면 메인 페이지로 리다이렉트
+                response.sendRedirect("/");
+            }
+        };
+    }
+
+    // 로그인 실패 핸들러: API와 웹 요청을 구분
+    private AuthenticationFailureHandler loginFailureHandler() {
+        return (request, response, exception) -> {
+            String accept = request.getHeader("Accept");
+
+            if (accept != null && accept.contains(MediaType.APPLICATION_JSON_VALUE)) {
+                response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.setCharacterEncoding("UTF-8");
+                Map<String, String> errorDetails = new HashMap<>();
+                errorDetails.put("status", "error");
+                errorDetails.put("message", "아이디 또는 비밀번호가 일치하지 않습니다.");
+                response.getWriter().write(objectMapper.writeValueAsString(errorDetails));
+            } else {
+                // 일반 브라우저 요청이면 로그인 페이지로 리다이렉트
+                response.sendRedirect("/login.html?error=true");
+            }
+        };
+    }
+
+    // 로그아웃 성공 핸들러: API와 웹 요청을 구분
+    private LogoutSuccessHandler logoutSuccessHandler() {
+        return (request, response, authentication) -> {
+            String accept = request.getHeader("Accept");
+
+            if (accept != null && accept.contains(MediaType.APPLICATION_JSON_VALUE)) {
+                response.setStatus(HttpStatus.OK.value());
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.setCharacterEncoding("UTF-8");
+                Map<String, String> successDetails = new HashMap<>();
+                successDetails.put("status", "success");
+                successDetails.put("message", "로그아웃 되었습니다.");
+                response.getWriter().write(objectMapper.writeValueAsString(successDetails));
+            } else {
+                response.sendRedirect("/");
+            }
+        };
+    }
+
+    // CORS 설정
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        // 프론트엔드 서버 주소(http://localhost:5173)를 허용
         configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
-        // 모든 종류의 HTTP 메소드(GET, POST 등)를 허용
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        // 모든 종류의 HTTP 헤더를 허용
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        // 쿠키 등 자격 증명 정보를 함께 보내는 것을 허용
         configuration.setAllowCredentials(true);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // 모든 URL 경로("/**")에 대해 위에서 만든 CORS 설정을 적용
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
