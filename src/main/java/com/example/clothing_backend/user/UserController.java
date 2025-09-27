@@ -58,144 +58,133 @@
 
 package com.example.clothing_backend.user;
 
-import com.example.clothing_backend.user.LoginInfo;
-import com.example.clothing_backend.user.User;
-import com.example.clothing_backend.user.UserRepository;
-import com.example.clothing_backend.user.UserService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
-import java.util.HashMap;
 
-// API 요청만 처리하는 컨트롤러로 통합
 @RestController
+@RequestMapping("/api/user") // 기본 경로를 /api/user로 설정
 @RequiredArgsConstructor
-@RequestMapping("/api/user") // 모든 URL 앞에 /api/user 를 붙임
 public class UserController {
 
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
-    private final UserRepository userRepository;
 
-    /**
-     * API 클라이언트(웹, 앱) 전용 로그인 처리
-     */
+    // --- 기존 웹 페이지용 매핑 (그대로 유지) ---
+    @GetMapping("/register.html")
+    public String registerForm() { return "register"; }
+
+    // --- API 전용 엔드포인트 ---
+
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> apiLogin(@RequestBody Map<String, String> loginRequest, HttpSession session) {
-        Map<String, String> response = new HashMap<>();
-        try {
-            String id = loginRequest.get("id");
-            String password = loginRequest.get("password");
+        String id = loginRequest.get("id");
+        String password = loginRequest.get("password");
 
+        try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(id, password)
             );
             SecurityContextHolder.getContext().setAuthentication(authentication);
-
             User user = (User) authentication.getPrincipal();
-            LoginInfo loginInfo = new LoginInfo(user.getUserId(), user.getId(), user.getNickname());
-            // 필요하다면 role 정보도 추가
-            // loginInfo.setRoles(userRepository.findRolesByUserId(user.getUserId()));
             session.setAttribute("loginUser", user);
-            session.setAttribute("loginInfo", loginInfo);
-
-            response.put("status", "success");
-            response.put("message", "로그인에 성공했습니다.");
-            return ResponseEntity.ok(response);
-
+            return ResponseEntity.ok(Map.of("status", "success", "message", "로그인 성공"));
         } catch (Exception e) {
-            response.put("status", "error");
-            response.put("message", "아이디 또는 비밀번호가 일치하지 않습니다.");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            return ResponseEntity.status(401).body(Map.of("status", "error", "message", "아이디 또는 비밀번호가 일치하지 않습니다."));
         }
     }
 
-    /**
-     * API 클라이언트용 회원가입 처리
-     */
     @PostMapping("/register")
     public ResponseEntity<Map<String, String>> apiRegister(@RequestBody User user) {
-        userService.addUser(user);
-        Map<String, String> response = new HashMap<>();
-        response.put("status", "success");
-        response.put("message", "회원가입이 완료되었습니다.");
-        return ResponseEntity.ok(response);
+        try {
+            userService.addUser(user);
+            return ResponseEntity.ok(Map.of("status", "success", "message", "회원가입이 완료되었습니다."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", "회원가입 실패: " + e.getMessage()));
+        }
     }
 
-    /**
-     * 아이디 중복 체크 API
-     */
+    // 중복 체크 API
     @GetMapping("/check-id")
     public ResponseEntity<Map<String, Boolean>> checkIdDuplicate(@RequestParam("id") String id) {
         return ResponseEntity.ok(Collections.singletonMap("isDuplicate", userService.isDuplicate("id", id)));
     }
 
-    /**
-     * 이메일 중복 체크 API
-     */
-    @GetMapping("/check-email")
-    public ResponseEntity<Map<String, Boolean>> checkEmailDuplicate(@RequestParam("email") String email) {
-        // UserService에 isDuplicate("email", email) 로직이 구현되어 있어야 함
-        return ResponseEntity.ok(Collections.singletonMap("isDuplicate", userService.isDuplicate("email", email)));
-    }
-
-    /**
-     * 닉네임 중복 체크 API
-     */
     @GetMapping("/check-nickname")
     public ResponseEntity<Map<String, Boolean>> checkNicknameDuplicate(@RequestParam("nickname") String nickname) {
-        // userService.isDuplicate를 호출해서 결과를 값으로 넣어줌
         return ResponseEntity.ok(Collections.singletonMap("isDuplicate", userService.isDuplicate("nickname", nickname)));
     }
 
-    /**
-     * 아이디 찾기 API
-     */
-    @PostMapping("/find-id")
-    public ResponseEntity<Map<String, String>> findId(@RequestBody Map<String, String> payload) {
-        String nickname = payload.get("nickname");
-        String email = payload.get("email");
-        String foundId = userService.findIdByNicknameAndEmail(nickname, email);
+    @GetMapping("/check-email")
+    public ResponseEntity<Map<String, Boolean>> checkEmailDuplicate(@RequestParam("email") String email) {
+        return ResponseEntity.ok(Collections.singletonMap("isDuplicate", userService.isDuplicate("email", email)));
+    }
 
-        Map<String, String> response = new HashMap<>();
-        if (foundId != null) {
-            response.put("status", "success");
-            response.put("id", foundId);
-            return ResponseEntity.ok(response);
+    // 아이디/비밀번호 찾기 API
+    @PostMapping("/find-id")
+    public ResponseEntity<Map<String, String>> findId(@RequestBody Map<String, String> request) {
+        String foundId = userService.findIdByNicknameAndEmail(request.get("nickname"), request.get("email"));
+        return ResponseEntity.ok(Collections.singletonMap("id", foundId));
+    }
+
+    @PostMapping("/find-pw")
+    public ResponseEntity<Map<String, String>> findPw(@RequestBody Map<String, String> request) {
+        boolean isSuccess = userService.findPwByIdAndEmail(request.get("id"), request.get("email"));
+        if (isSuccess) {
+            // 실제 이메일 전송 로직은 UserService에 구현해야 함
+            return ResponseEntity.ok(Map.of("status", "success", "message", "가입하신 이메일로 안내 메일을 전송했습니다."));
         } else {
-            response.put("status", "error");
-            response.put("message", "일치하는 회원이 없습니다.");
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            return ResponseEntity.badRequest().body(Map.of("status", "error", "message", "일치하는 회원 정보가 없습니다."));
         }
     }
 
-    /**
-     * 비밀번호 찾기(재설정) API
-     */
-    @PostMapping("/find-pw")
-    public ResponseEntity<Map<String, String>> findPw(@RequestBody Map<String, String> payload) {
-        String id = payload.get("id");
-        String email = payload.get("email");
-        boolean isSuccess = userService.findPwByIdAndEmail(id, email); // boolean 반환하도록 수정 필요
+    // --- [ApiController에서 이동 및 수정] 마이페이지 기능 ---
 
-        Map<String, String> response = new HashMap<>();
-        if (isSuccess) {
-            response.put("status", "success");
-            response.put("message", "가입하신 이메일로 임시 비밀번호 관련 안내를 전송했습니다.");
-            return ResponseEntity.ok(response);
-        } else {
-            response.put("status", "error");
-            response.put("message", "일치하는 회원이 없습니다.");
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    @PostMapping("/mypage/profile-upload")
+    public ResponseEntity<Map<String, String>> uploadProfile(
+            @RequestParam("profileImage") MultipartFile profileImage,
+            @AuthenticationPrincipal User loginUser) {
+        if (loginUser == null) {
+            return ResponseEntity.status(401).body(Map.of("status", "error", "message", "로그인이 필요합니다."));
         }
+        try {
+            String base64Image = userService.saveProfileImage(profileImage, loginUser.getId());
+            return ResponseEntity.ok(Map.of("status", "success", "profileImageUrl", base64Image));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("status", "error", "message", "이미지 업로드 실패"));
+        }
+    }
+
+    @PostMapping("/mypage/password-reset")
+    public ResponseEntity<Map<String, String>> resetPassword(
+            @RequestBody Map<String, String> passwordRequest,
+            @AuthenticationPrincipal User loginUser) {
+        if (loginUser == null) {
+            return ResponseEntity.status(401).body(Map.of("status", "error", "message", "로그인이 필요합니다."));
+        }
+        String newPassword = passwordRequest.get("newPassword");
+        // 비밀번호 확인 로직은 프론트에서 처리하는 것을 가정
+        userService.updatePassword(loginUser.getId(), loginUser.getEmail(), newPassword);
+        return ResponseEntity.ok(Map.of("status", "success", "message", "비밀번호가 변경되었습니다. 다시 로그인해주세요."));
+    }
+
+    @PostMapping("/mypage/delete-account")
+    public ResponseEntity<Map<String, String>> deleteAccount(@AuthenticationPrincipal User loginUser) {
+        if (loginUser == null) {
+            return ResponseEntity.status(401).body(Map.of("status", "error", "message", "로그인이 필요합니다."));
+        }
+        userService.deleteUser(loginUser.getId());
+        return ResponseEntity.ok(Map.of("status", "success", "message", "회원 탈퇴가 완료되었습니다."));
     }
 }
