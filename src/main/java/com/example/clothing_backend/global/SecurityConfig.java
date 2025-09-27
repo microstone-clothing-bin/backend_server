@@ -171,14 +171,13 @@
 //    }
 //}
 
-// 보안 설정 (진짜 진짜 최종 수정)
+// 보안 설정 (CSRF 켜고 API와 공존하는 최종 버전)
 
 package com.example.clothing_backend.global;
 
-// [수정] .model 경로 삭제
+import com.example.clothing_backend.user.CustomUserDetailsService;
 import com.example.clothing_backend.user.LoginInfo;
 import com.example.clothing_backend.user.User;
-import com.example.clothing_backend.user.CustomUserDetailsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
@@ -193,6 +192,8 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -215,10 +216,15 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+        requestHandler.setCsrfRequestAttributeName(null);
+
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                // [웹팀 제안 반영] CSRF 완전 비활성화
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRequestHandler(requestHandler)
+                )
 
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
@@ -237,7 +243,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(
-                                "/", "/css/**", "/js/**", "/api/**",
+                                "/", "/css/**", "/js/**", "/api/**", // /api/** 는 일단 열어두고 각 컨트롤러에서 세부 설정
                                 "/login", "/login.html", "/register.html", "/userReg",
                                 "/findIdForm", "/findId", "/findPwForm", "/findPw",
                                 "/share", "/board"
@@ -257,26 +263,25 @@ public class SecurityConfig {
                         .logoutUrl("/logout")
                         .logoutSuccessHandler(logoutSuccessHandler())
                         .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
+                        .deleteCookies("JSESSIONID", "XSRF-TOKEN")
                 )
                 .userDetailsService(customUserDetailsService);
 
         return http.build();
     }
 
-    // 로그인 성공 핸들러
     private AuthenticationSuccessHandler loginSuccessHandler() {
         return (request, response, authentication) -> {
-            // [웹팀 제안 반영] 세션 저장 로직
-            User user = (User) authentication.getPrincipal();
-            HttpSession session = request.getSession();
-            session.setAttribute("loginUser", user);
-            LoginInfo loginInfo = new LoginInfo(user.getUserId(), user.getId(), user.getNickname());
-            session.setAttribute("loginInfo", loginInfo);
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof User) {
+                User user = (User) principal;
+                HttpSession session = request.getSession();
+                session.setAttribute("loginUser", user);
+                LoginInfo loginInfo = new LoginInfo(user.getUserId(), user.getId(), user.getNickname());
+                session.setAttribute("loginInfo", loginInfo);
+            }
 
             String accept = request.getHeader("Accept");
-
-            // [최종 로직] Accept 헤더에 "application/json"이 있으면 무조건 API 요청으로 간주
             if (accept != null && accept.contains(MediaType.APPLICATION_JSON_VALUE)) {
                 response.setStatus(HttpStatus.OK.value());
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -286,13 +291,11 @@ public class SecurityConfig {
                 successDetails.put("message", "로그인에 성공했습니다.");
                 response.getWriter().write(objectMapper.writeValueAsString(successDetails));
             } else {
-                // 그 외 모든 경우는 브라우저 요청으로 간주하고 리다이렉트
                 response.sendRedirect("/");
             }
         };
     }
 
-    // 로그인 실패 핸들러
     private AuthenticationFailureHandler loginFailureHandler() {
         return (request, response, exception) -> {
             String accept = request.getHeader("Accept");
@@ -310,7 +313,6 @@ public class SecurityConfig {
         };
     }
 
-    // 로그아웃 성공 핸들러
     private LogoutSuccessHandler logoutSuccessHandler() {
         return (request, response, authentication) -> {
             String accept = request.getHeader("Accept");
@@ -328,7 +330,6 @@ public class SecurityConfig {
         };
     }
 
-    // CORS 설정
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
