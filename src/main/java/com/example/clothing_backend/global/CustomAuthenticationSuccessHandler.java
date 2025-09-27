@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -36,7 +37,14 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
         session.setAttribute("loginUser", user);       // 전체 User 객체
         session.setAttribute("loginInfo", loginInfo); // 가벼운 LoginInfo 객체
 
-        // 무조건 메인 페이지("/")로 이동하도록 강제 (추후 수정해야 할 수도..)
-        response.sendRedirect("/");
+// 손님을 확인하고 다르게 응대
+        String accept = request.getHeader("Accept");
+        if (accept != null && accept.contains(MediaType.APPLICATION_JSON_VALUE)) {
+            // API 손님 -> JSON 응답
+            response.getWriter().write("{...}");
+        } else {
+            // 웹 손님 -> 페이지 이동
+            response.sendRedirect("/");
+        }
     }
 }
