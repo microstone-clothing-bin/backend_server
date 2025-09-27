@@ -20,21 +20,23 @@ public class UserService {
     @Transactional
     public void addUser(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        // 역할(Role)을 부여하는 로직은 UserDetails 구현으로 대체되거나 별도 서비스로 분리 가능
         userRepository.save(user);
     }
 
     // 로그인 시 사용자 조회
     public User getUser(String id) {
-        return userRepository.findById(id).orElse(null); // Optional 처리
+        return userRepository.findById(id).orElse(null);
     }
 
-    // 중복 확인
+    // 중복 확인 (이메일 체크 추가)
     public boolean isDuplicate(String type, String value) {
         if ("id".equals(type)) {
             return userRepository.existsById(value);
         } else if ("nickname".equals(type)) {
             return userRepository.existsByNickname(value);
+        } else if ("email".equals(type)) {
+            // UserRepository에 existsByEmail 메소드가 있어야 함
+            return userRepository.existsByEmail(value);
         }
         return false;
     }
@@ -51,11 +53,10 @@ public class UserService {
                 .orElse(null);
     }
 
-    // 비밀번호 찾기
-    public String findPwByIdAndEmail(String id, String email) {
-        return userRepository.findByIdAndEmail(id, email)
-                .map(User::getPassword)
-                .orElse(null);
+    // [수정] 비밀번호 찾기 (사용자 존재 여부를 boolean으로 반환)
+    public boolean findPwByIdAndEmail(String id, String email) {
+        // 사용자가 존재하면 isPresent()가 true를, 존재하지 않으면 false를 반환
+        return userRepository.findByIdAndEmail(id, email).isPresent();
     }
 
     // 프로필 이미지 저장
