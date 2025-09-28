@@ -1,3 +1,5 @@
+// html을 반환하는 컨트롤러
+
 package com.example.clothing_backend.user;
 
 import jakarta.servlet.http.HttpSession;

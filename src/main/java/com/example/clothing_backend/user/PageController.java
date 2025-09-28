@@ -1,4 +1,4 @@
-// HTML 페이지 반환용 컨트롤러 (json은 UserController)
+// HTML 페이지 반환용 컨트롤러
 
 package com.example.clothing_backend.user;
 

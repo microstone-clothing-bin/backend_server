@@ -1,47 +1,90 @@
-// 보안 설정 (건들지 말기)
-
 package com.example.clothing_backend.global;
 
-import com.example.clothing_backend.global.CustomAuthenticationSuccessHandler;
 import com.example.clothing_backend.user.CustomUserDetailsService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import java.util.Arrays;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final CustomUserDetailsService customUserDetailsService;
-    private final CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
+    private final WebLoginSuccessHandler webLoginSuccessHandler;
+    private final ApiLoginSuccessHandler apiLoginSuccessHandler;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    // --- API용 보안 설정 (가장 높은 우선순위) ---
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    @Order(1)
+    public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
         http
-                // 전역 CORS 설정 적용
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .securityMatcher("/api/**") // Deprecated 코드 수정 완료
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/user/register", "/api/user/check-duplicate", "/api/clothing-bins/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .csrf(AbstractHttpConfigurer::disable)
+                .formLogin(form -> form
+                        .loginProcessingUrl("/api/login")
+                        .usernameParameter("id") // API 로그인도 'id' 파라미터를 사용
+                        .successHandler(apiLoginSuccessHandler)
+                        .failureHandler((request, response, exception) -> {
+                            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+                            Map<String, Object> data = new HashMap<>();
+                            data.put("status", "error");
+                            data.put("message", "로그인 정보가 올바르지 않습니다.");
+                            response.getWriter().write(objectMapper.writeValueAsString(data));
+                        })
+                )
+                .logout(logout -> logout
+                        .logoutUrl("/api/logout")
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                            response.setStatus(HttpStatus.OK.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+                            Map<String, Object> data = new HashMap<>();
+                            data.put("status", "success");
+                            data.put("message", "로그아웃 되었습니다.");
+                            response.getWriter().write(objectMapper.writeValueAsString(data));
+                        })
+                )
+                .exceptionHandling(e -> e.authenticationEntryPoint((request, response, authException) ->
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED)
+                ));
+        return http.build();
+    }
 
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
-
-                .authorizeHttpRequests(authz -> authz
+    // --- 웹 페이지용 보안 설정 (두 번째 우선순위) ---
+    @Bean
+    @Order(2)
+    public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
+        http
+                .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/", "/css/**", "/js/**", "/api/**",
-                                "/login", "/login.html", "/register.html", "/userReg",
-                                "/findIdForm", "/findId", "/findPwForm", "/findPw",
-                                "/share", "/board"
+                                "/", "/css/**", "/js/**", "/login", "/login.html",
+                                "/register.html", "/userReg", "/findIdForm", "/findId",
+                                "/findPwForm", "/findPw", "/share", "/board"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -50,7 +93,7 @@ public class SecurityConfig {
                         .loginProcessingUrl("/login")
                         .usernameParameter("id")
                         .passwordParameter("password")
-                        .successHandler(customAuthenticationSuccessHandler)
+                        .successHandler(webLoginSuccessHandler)
                         .failureUrl("/login.html?error=true")
                         .permitAll()
                 )
@@ -63,25 +106,5 @@ public class SecurityConfig {
                 .userDetailsService(customUserDetailsService);
 
         return http.build();
-    }
-
-    // 전역 CORS 설정 Bean 생성
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-
-        // 프론트엔드 서버 주소(http://localhost:5173)를 허용
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
-        // 모든 종류의 HTTP 메소드(GET, POST 등)를 허용
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        // 모든 종류의 HTTP 헤더를 허용
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        // 쿠키 등 자격 증명 정보를 함께 보내는 것을 허용
-        configuration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // 모든 URL 경로("/**")에 대해 위에서 만든 CORS 설정을 적용
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
     }
 }

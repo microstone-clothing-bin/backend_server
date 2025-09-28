@@ -16,7 +16,7 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
-public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
+public class WebLoginSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
 
@@ -24,31 +24,20 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException {
-        // 로그인 성공 시 User 꺼내오기
+        // 로그인 성공한 User 정보 가져오기
         User user = (User) authentication.getPrincipal();
 
-        // 가벼운 로그인 정보 객체 생성
+        // 세션에 저장할 가벼운 로그인 정보 객체 생성
         LoginInfo loginInfo = new LoginInfo(user.getUserId(), user.getId(), user.getNickname());
         loginInfo.setRoles(userRepository.findRolesByUserId(user.getUserId()));
 
-        // 세션에 저장
+        // 세션에 사용자 정보 저장
         HttpSession session = request.getSession();
         session.setAttribute("loginUser", user);
         session.setAttribute("loginInfo", loginInfo);
 
-        // 요청 구분 (API vs 웹)
-        if (request.getRequestURI().startsWith("/api/")) {
-            // API 요청 → JSON 응답
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write(
-                    "{ \"status\": 200, " +
-                            "\"message\": \"로그인 성공\", " +
-                            "\"userId\": " + user.getUserId() + ", " +
-                            "\"nickname\": \"" + user.getNickname() + "\" }"
-            );
-        } else {
-            // 웹 요청 → 기존처럼 redirect
-            response.sendRedirect("/");
-        }
+        // 사용자를 원래 가려던 페이지나 기본 페이지("/")로 리다이렉트
+        setDefaultTargetUrl("/");
+        super.onAuthenticationSuccess(request, response, authentication);
     }
 }

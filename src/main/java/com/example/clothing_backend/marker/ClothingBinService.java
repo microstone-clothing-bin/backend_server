@@ -1,6 +1,6 @@
 package com.example.clothing_backend.marker;
 
-import lombok.RequiredArgsConstructor; // 생성자 주입을 위해 추가
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +22,10 @@ public class ClothingBinService {
     // 반경 기반 검색 또는 전체 조회
     public List<ClothingBin> findClothingBins(Double lat, Double lng, Double radiusKm) {
         if (lat != null && lng != null && radiusKm != null) {
-            // 위치 기반 검색
-            return clothingBinRepository.findBinsWithinRadius(lat, lng, radiusKm);
+            // [핵심 수정] Controller에서 받은 lat, lng 순서를 Repository가 요구하는 lng, lat 순서로 바꿔서 전달합니다.
+            return clothingBinRepository.findBinsWithinRadius(lng, lat, radiusKm);
         } else {
-            // 전체 조회
+            // 파라미터가 없으면 전체 의류수거함 목록을 반환합니다.
             return clothingBinRepository.findAll();
         }
     }
@@ -34,5 +34,4 @@ public class ClothingBinService {
     public List<ClothingBin> findBinsInBounds(double swLat, double swLng, double neLat, double neLng) {
         return clothingBinRepository.findBinsInBounds(swLat, swLng, neLat, neLng);
     }
-
 }

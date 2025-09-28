@@ -1,4 +1,4 @@
-// json 반환용 컨트롤러 (html은 pageController)
+// json 반환하는 컨트롤러
 
 package com.example.clothing_backend.user;
 
